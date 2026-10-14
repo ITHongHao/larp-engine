@@ -1,0 +1,145 @@
+name: PR policy
+
+# One workflow, four checks, one aggregate status ("pr-policy") to require in branch protection.
+#
+# Conventions enforced (team key: TRPG, no hyphen):
+#   Branch:       feature/<name>   or   scratch/TRPG<digits>[-<name>]
+#   PR title:     TRPG<digits>: <title>
+#   Description:  must reference TRPG<digits>
+#   Commits:      TRPG<digits>: <message>   (subject line of every non-merge commit)
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  branch-name:
+    name: Branch name
+    # Bots use their own branch/title/commit conventions
+    if: github.actor != 'dependabot[bot]' && github.actor != 'renovate[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate branch name
+        env:
+          BRANCH: ${{ github.head_ref }}
+        run: |
+          # Lowercased copy so TRPG123 and trpg123 both match the ticket pattern
+          LOWER=$(printf '%s' "$BRANCH" | tr '[:upper:]' '[:lower:]')
+
+          if [[ "$BRANCH" =~ ^feature/.+ ]]; then
+            echo "Valid feature branch: $BRANCH"
+
+          elif [[ "$BRANCH" == scratch/* ]]; then
+            # Ticket: TRPG + digits (no hyphen) directly after "scratch/"
+            if [[ "$LOWER" =~ ^scratch/trpg[0-9]+([-/].*)?$ ]]; then
+              echo "Valid scratch branch: $BRANCH"
+            else
+              echo "::error::Scratch branches must include a Linear ticket right after the prefix, e.g. scratch/TRPG123-try-new-parser (got '$BRANCH')."
+              exit 1
+            fi
+
+          else
+            echo "::error::Branch names must start with 'feature/' or 'scratch/' (got '$BRANCH'). Scratch branches also need a ticket, e.g. scratch/TRPG123-short-description."
+            exit 1
+          fi
+
+  pr-title:
+    name: PR title
+    if: github.actor != 'dependabot[bot]' && github.actor != 'renovate[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate PR title
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          # Format: TRPG<digits>: <title>   e.g. "TRPG129387: Fix login redirect"
+          TITLE_PATTERN='^TRPG[0-9]+: [^[:space:]].*$'
+
+          if printf '%s' "$PR_TITLE" | grep -Eq "$TITLE_PATTERN"; then
+            echo "PR title format OK: $PR_TITLE"
+          else
+            echo "::error::PR title must look like 'TRPG123: Short description' (got '$PR_TITLE')."
+            exit 1
+          fi
+
+  linear-description:
+    name: Linear ticket in description
+    if: github.actor != 'dependabot[bot]' && github.actor != 'renovate[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check description references the ticket
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          PATTERN='\bTRPG[0-9]+\b'
+
+          # Strip HTML comments so PR-template placeholder text doesn't count
+          CLEAN_BODY=$(printf '%s' "$PR_BODY" | perl -0pe 's/<!--.*?-->//gs')
+
+          if printf '%s' "$CLEAN_BODY" | grep -Eiq "$PATTERN"; then
+            echo "Linear ticket found in description."
+          else
+            echo "::error::Reference the Linear ticket in the PR description (e.g. 'Fixes TRPG123', no hyphen)."
+            exit 1
+          fi
+
+  commit-messages:
+    name: Commit messages
+    if: github.actor != 'dependabot[bot]' && github.actor != 'renovate[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Validate the author's real commits, not GitHub's synthetic merge commit
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: Validate commit messages
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          # Format: TRPG<digits>: <message>   e.g. "TRPG129387: Fix login redirect"
+          PATTERN='^TRPG[0-9]+: [^[:space:]].*$'
+          failed=0
+
+          # --no-merges skips merge commits (e.g. "Merge branch 'main' into ...")
+          while IFS=$'\t' read -r sha subject; do
+            [ -z "$sha" ] && continue
+            if printf '%s' "$subject" | grep -Eq "$PATTERN"; then
+              echo "OK   ${sha:0:7}  $subject"
+            else
+              echo "::error::Commit ${sha:0:7} has an invalid message: '$subject'. Expected 'TRPG123: Short description'."
+              failed=1
+            fi
+          done < <(git log --no-merges --format='%H%x09%s' "$BASE_SHA..$HEAD_SHA")
+
+          if [ "$failed" -ne 0 ]; then
+            echo "::error::One or more commits don't match 'TRPG<digits>: <message>'. Reword them with 'git rebase -i' and force-push."
+            exit 1
+          fi
+
+          echo "All commit messages are valid."
+
+  # Aggregate gate: this is the ONLY check to mark as required in branch protection.
+  pr-policy:
+    name: pr-policy
+    needs: [branch-name, pr-title, linear-description, commit-messages]
+    # always() so this runs (and reports) even when a needed job fails.
+    # Skipped jobs (bot PRs) are treated as passing.
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require all policy checks to pass
+        env:
+          RESULTS: ${{ toJSON(needs.*.result) }}
+        run: |
+          echo "Job results: $RESULTS"
+          if echo "$RESULTS" | grep -Eq '"(failure|cancelled)"'; then
+            echo "::error::One or more PR policy checks failed. See the individual jobs above."
+            exit 1
+          fi
+          echo "All PR policy checks passed (or were skipped for bots)."

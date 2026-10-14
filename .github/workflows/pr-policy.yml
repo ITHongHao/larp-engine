@@ -34,7 +34,7 @@ jobs:
 
           elif [[ "$BRANCH" == scratch/* ]]; then
             # Ticket: TRPG + digits (no hyphen) directly after "scratch/"
-            if [[ "$LOWER" =~ ^scratch/trpg[0-9]+([-/].*)?$ ]]; then
+            if [[ "$LOWER" =~ ^scratch/trpg[0-9]+([-_/].*)?$ ]]; then
               echo "Valid scratch branch: $BRANCH"
             else
               echo "::error::Scratch branches must include a Linear ticket right after the prefix, e.g. scratch/TRPG123-try-new-parser (got '$BRANCH')."

@@ -1,0 +1,36 @@
+name: Require Linear ticket
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+jobs:
+  linear-ticket:
+    # Skipped jobs count as passing for required checks
+    if: github.actor != 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check for Linear issue reference
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          PR_BRANCH: ${{ github.head_ref }}
+        run: |
+          PATTERN='\bTRPG-[0-9]+\b'
+
+          # Strip HTML comments so template placeholder text doesn't count
+          CLEAN_BODY=$(printf '%s' "$PR_BODY" | perl -0pe 's/<!--.*?-->//gs')
+
+          # Check 1: ticket ID in the title or branch name
+          if ! printf '%s\n%s' "$PR_TITLE" "$PR_BRANCH" | grep -Eiq "$PATTERN"; then
+            echo "::error::Add a Linear ticket ID (e.g. TRPG-123) to the PR title or branch name."
+            exit 1
+          fi
+
+          # Check 2: ticket ID or Linear link in the description
+          if ! printf '%s' "$CLEAN_BODY" | grep -Eiq "$PATTERN"; then
+            echo "::error::Link the Linear ticket in the PR description (e.g. 'Fixes TRPG-123' or the full Linear URL)."
+            exit 1
+          fi
+
+          echo "Linear ticket found in title/branch and description."

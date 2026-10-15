@@ -74,7 +74,7 @@ jobs:
         env:
           PR_BODY: ${{ github.event.pull_request.body }}
         run: |
-          PATTERN='\bTRPG[0-9]+\b'
+          PATTERN='\bTRPG-?[0-9]+\b'
 
           # Strip HTML comments so PR-template placeholder text doesn't count
           CLEAN_BODY=$(printf '%s' "$PR_BODY" | perl -0pe 's/<!--.*?-->//gs')

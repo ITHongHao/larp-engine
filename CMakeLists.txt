@@ -97,12 +97,13 @@ add_executable(${PROJECT_NAME} ${MAIN})
 target_link_libraries(${PROJECT_NAME} PRIVATE SDL3::SDL3 EnTT::EnTT glm::glm glad OpenGL::GL IMGUI STB_IMAGE XML
 )
 
-# an executable command to keep things next to each other for the project to be easily found by the OS.
+# an executable command to keep things next to each other for the project to be easily found by the OS. Also meant for .dll files organization.
+# .dll file in bin/Debug/ after building
 if (WIN32)
-    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD # POST_BUILD: execute this command after .exe is completedly built
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different # copies file from one place to another if file doesn't exist at that destination or if source file is updated.
-        $<TARGET_RUNTIME_DLLS:${PROJECT_NAME}> # generates list of every .dll file the project requires
-        $<TARGET_FILE_DIR:${PROJECT_NAME}> # finds folder path where the executable should land
-        COMMAND_EXPAND_LISTS # do consecutive reading, not simulateous for when there's multiple .dll files
+    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        $<TARGET_RUNTIME_DLLS:${PROJECT_NAME}>
+        $<TARGET_FILE_DIR:${PROJECT_NAME}>
+        COMMAND_EXPAND_LISTS
     )
 endif()

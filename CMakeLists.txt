@@ -35,6 +35,14 @@ set(IMGUI_SRC
       vendor/imgui-1.92.9b/backends/imgui_impl_sdl3.cpp
     )
 
+set(ENGINE_SRC
+      src/Main/engine.cpp
+      src/Main/resource_manager.cpp
+      src/Main/shader.cpp
+      src/Main/sprite_renderer.cpp
+      src/Main/texture2d.cpp
+    )
+
 #[========================================================================================================================================[
 IMGUI NOTE:
   imgui has no cmakelists.txt in its repo,
@@ -93,17 +101,30 @@ FetchContent_MakeAvailable(SDL3 EnTT glm glad)
 glad_add_library(glad STATIC API gl:core=3.3)
 
 target_link_libraries(IMGUI PRIVATE SDL3::SDL3 OpenGL::GL)
-add_executable(${PROJECT_NAME} ${MAIN})
-target_link_libraries(${PROJECT_NAME} PRIVATE SDL3::SDL3 EnTT::EnTT glm::glm glad OpenGL::GL IMGUI STB_IMAGE XML
+add_library(${PROJECT_NAME} STATIC ${ENGINE_SRC})
+target_include_directories(${PROJECT_NAME} PUBLIC src/Main)
+target_link_libraries(${PROJECT_NAME} PUBLIC SDL3::SDL3 EnTT::EnTT glm::glm glad OpenGL::GL IMGUI STB_IMAGE XML
 )
+
+add_executable(flappybird src/Main/game.cpp)
+target_link_libraries(flappybird PRIVATE LarpEngine)
 
 # an executable command to keep things next to each other for the project to be easily found by the OS. Also meant for .dll files organization.
 # .dll file in bin/Debug/ after building
 if (WIN32)
-    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        $<TARGET_RUNTIME_DLLS:${PROJECT_NAME}>
-        $<TARGET_FILE_DIR:${PROJECT_NAME}>
-        COMMAND_EXPAND_LISTS
-    )
+  add_custom_command(TARGET flappybird   POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+    $<TARGET_RUNTIME_DLLS:flappybird>
+    $<TARGET_FILE_DIR:flappybird>
+    COMMAND_EXPAND_LISTS
+  )
 endif()
+
+add_custom_command(TARGET flappybird POST_BUILD
+  COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different
+    ${CMAKE_SOURCE_DIR}/shaders
+    $<TARGET_FILE_DIR:flappybird>/shaders
+  COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different
+    ${CMAKE_SOURCE_DIR}/assets
+    $<TARGET_FILE_DIR:flappybird>/assets
+)

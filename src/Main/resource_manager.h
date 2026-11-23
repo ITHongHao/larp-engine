@@ -36,7 +36,7 @@ namespace larp
     Texture2D& LoadTexture(const std::string& file, const std::string& name);
     
     // Use "name" to get the reference of a previous active texture from m_Textures map
-    // Don't need file path to shader with this
+    // Don't need file path to texture with this
     Texture2D& GetTexture(const std::string& name);
 
     // Deletes textures and shaders from m_Shaders and m_Textures (glDeleteProgram/glDeleteTextures)

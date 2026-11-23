@@ -1,6 +1,7 @@
 #include "shader.h"
 
 #include <iostream>
+#include <glm/gtc/type_ptr.hpp>
 
 // Shader:
 // Binding, creation, error checks, and other actions

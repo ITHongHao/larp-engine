@@ -1,5 +1,3 @@
-#include <iostream>
-
 #include "texture2d.h"
 
 // Textures

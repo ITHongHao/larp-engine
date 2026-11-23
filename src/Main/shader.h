@@ -6,7 +6,6 @@
 
 #include <glad/gl.h>
 #include <glm/glm.hpp>
-#include <glm/gtc/type_ptr.hpp>
 
 //General shader object
 //Compiles from file, generates error messages and contains multiple utility functions

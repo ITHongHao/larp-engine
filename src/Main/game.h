@@ -1,9 +1,12 @@
 #ifndef GAME_H
 #define GAME_H
 
-#include <glad/gl.h>
-#include <SDL3/SDL.h>
-#include <SDL3/SDL_opengl.h>
+#include <glm/glm.hpp>
+#include <memory>
+
+#include "engine.h"
+#include "resource_manager.h"
+#include "sprite_renderer.h"
 
 // Represents current state of the game
 enum GameState
@@ -15,24 +18,34 @@ enum GameState
 
 // Holds all states and functionalities of the game
 // For easy accessibility
-class Game
+class Game : public larp::GameBase
 {
-  public:
-    // game state
-    GameState    State;	
-    bool         Keys[1024];
-    unsigned int Width, Height;
+public:
+  // Game state
+  GameState    State;	
+  bool         Keys[1024];
+  unsigned int Width, Height;
 
-    Game(unsigned int width, unsigned int height);
-    ~Game();
+  // Constructor/Destructor
+  Game(unsigned int width, unsigned int height);
+  ~Game() override = default;
 
-    // initialize game state (shaders/textures/etc)
-    void Init();
-    
-    // game loop
-    void ProcessInput(float dt);
-    void Update(float dt);
-    void Render();
+  // Initialize game state (shaders/textures/etc)
+  void Init() override;
+  
+  // Game loop
+  void ProcessInput(float dt) override;
+  void Update(float dt) override;
+  void Render() override;
+  void Shutdown() override;
+  
+private:
+  // Additional Members
+  std::unique_ptr<larp::ResourceManager> m_Resources;
+  std::unique_ptr<larp::SpriteRenderer> m_Renderer;
+  larp::Shader* m_SpriteShader = nullptr;
+  larp::Texture2D* m_MinionTexture = nullptr;
+  glm::mat4 m_Projection;
 };
 
 #endif

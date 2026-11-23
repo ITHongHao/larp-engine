@@ -1,14 +1,12 @@
 // Resource Manager
 
+#include "resource_manager.h"
+
 #include <iostream>
 #include <sstream>
 #include <fstream>
-#include <string>
-#include <glad/gl.h>
 
-#include "resource_manager.h"
 #include "stb_image.h"
-
 
 namespace larp {
   // Constructor already has default in header file

@@ -2,7 +2,6 @@
 
 #include <glad/gl.h>
 #include <SDL3/SDL.h>
-#include <SDL3/SDL_opengl.h>
 #include <iostream>
 
 // Main Function
@@ -13,7 +12,13 @@ int larp::Engine::run_engine(GameBase& game)
   bool done = false; //check for window startup
 
   //starts up sdl library and configures use with OpenGL 3.3.0
-  SDL_Init(SDL_INIT_VIDEO);
+  bool initCheck = SDL_Init(SDL_INIT_VIDEO);
+  //failstate for when SDL library is not able to be initialized
+  if (initCheck == false)
+  {
+    SDL_LogError(SDL_LOG_CATEGORY_ERROR, "Could not initialize SDL library: %s", SDL_GetError());
+    return 1;
+  }
   SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
   SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
   SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
@@ -29,18 +34,30 @@ int larp::Engine::run_engine(GameBase& game)
   //failstate with resolution or errors with graphics drivers
   if (window == nullptr)
   {
-    SDL_LogError(SDL_LOG_CATEGORY_ERROR, "Could not create window: %s\n", SDL_GetError());
+    SDL_LogError(SDL_LOG_CATEGORY_ERROR, "Could not create window: %s", SDL_GetError());
+    SDL_Quit();
     return 1;
   }
 
   //state machine for OpenGL that binds to window
   SDL_GLContext glcontext = SDL_GL_CreateContext(window);
 
+  //failstate for if OpenGL version is not supported with the GPU driver
+  if (glcontext == nullptr){
+    SDL_LogError(SDL_LOG_CATEGORY_ERROR, "OpenGL version window is not supported with GPU: %s", SDL_GetError());
+    SDL_DestroyWindow(window);
+    SDL_Quit();
+    return 1;
+  }
+
   //failstate for if GLAD (loading library) fails to load OpenGL functions from within graphics drivers
   if (!gladLoadGL((GLADloadfunc)SDL_GL_GetProcAddress))
   {
-    std::cout << "Failed to initialize GLAD" << std::endl;
-    return -1;
+    SDL_LogError(SDL_LOG_CATEGORY_ERROR, "Failed to initialize GLAD");
+    SDL_GL_DestroyContext(glcontext);
+    SDL_DestroyWindow(window);
+    SDL_Quit();
+    return 1;
   }
 
   glViewport(0, 0, larp::Configuration::width, larp::Configuration::height);

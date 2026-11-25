@@ -34,6 +34,7 @@ namespace larp
   class Engine
   {
   public:
+    // Returns 0 if successful, 1 otherwise
     int run_engine(GameBase& game);
   };
 }
